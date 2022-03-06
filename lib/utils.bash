@@ -2,7 +2,6 @@
 
 set -euo pipefail
 
-# TODO: Ensure this is the correct GitHub homepage where releases can be downloaded for tonnage.
 GH_REPO="https://github.com/elementalvoid/tonnage"
 TOOL_NAME="tonnage"
 TOOL_TEST="tonnage --help"
@@ -31,8 +30,6 @@ list_github_tags() {
 }
 
 list_all_versions() {
-  # TODO: Adapt this. By default we simply list the tag names from GitHub releases.
-  # Change this function if tonnage has other means of determining installable versions.
   list_github_tags
 }
 
@@ -41,8 +38,23 @@ download_release() {
   version="$1"
   filename="$2"
 
-  # TODO: Adapt the release URL convention for tonnage
-  url="$GH_REPO/archive/v${version}.tar.gz"
+  local arch
+  arch=$(uname -m)
+  # Remap names to match GitHub releases.
+  [[ $arch = "aarch64" ]] && arch="arm64"
+
+  local supported_archs
+  supported_archs=("x86_64" "arm64")
+  [[ ! " ${supported_archs[*]} " =~ ${arch} ]] && fail "Sorry, $arch is not supported."
+
+  local platform
+  platform="$(uname)"
+  if [[ ${platform} == windows ]]; then
+    platform="Windows"
+  fi
+
+  # https://github.com/elementalvoid/tonnage/releases/download/v0.1.1/tonnage_0.1.1_Darwin_x86_64.tar.gz
+  url="$GH_REPO/releases/download/v${version}/tonnage_${version}_${platform}_${arch}.tar.gz"
 
   echo "* Downloading $TOOL_NAME release $version..."
   curl "${curl_opts[@]}" -o "$filename" -C - "$url" || fail "Could not download $url"
@@ -61,10 +73,9 @@ install_version() {
     mkdir -p "$install_path"
     cp -r "$ASDF_DOWNLOAD_PATH"/* "$install_path"
 
-    # TODO: Asert tonnage executable exists.
     local tool_cmd
     tool_cmd="$(echo "$TOOL_TEST" | cut -d' ' -f1)"
-    test -x "$install_path/bin/$tool_cmd" || fail "Expected $install_path/bin/$tool_cmd to be executable."
+    test -x "$install_path/$tool_cmd" || fail "Expected $install_path/$tool_cmd to be executable."
 
     echo "$TOOL_NAME $version installation was successful!"
   ) || (
